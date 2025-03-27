@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
 
 class YouTubeConverterController extends Controller
 {
@@ -133,6 +134,8 @@ class YouTubeConverterController extends Controller
         $title = $json['title'] ?? 'Tanpa Judul';
         $thumbnail = $json['thumbnail'] ?? '';
         $videoId = $json['id'] ?? '';
+        $duration = $json['duration'] ?? null; // dalam detik
+        $bitrate = $json['abr'] ?? null; // average bitrate
 
         // STEP 2: Download mp3
         $command = "cd {$outputDir} && yt-dlp -x --audio-format mp3 -o \"{$filename}.%(ext)s\" " . escapeshellarg($url);
@@ -144,13 +147,23 @@ class YouTubeConverterController extends Controller
             return response()->json(['error' => 'Gagal mengonversi video.']);
         }
 
+        $fileSize = File::size($fullPath); // dalam byte
+        $fileSizeMB = round($fileSize / 1048576, 2); // konversi ke MB
+
         return response()->json([
             'success' => 'Berhasil dikonversi!',
             'download' => asset("mp3/{$outputFilename}"),
             'title' => $title,
             'thumbnail' => $thumbnail,
             'video_id' => $videoId,
-            'embed' => "https://www.youtube.com/embed/{$videoId}"
+            'embed' => "https://www.youtube.com/embed/{$videoId}",
+            'audio_info' => [
+                'format' => 'MP3',
+                'size_mb' => $fileSizeMB,
+                'bitrate' => $bitrate ? $bitrate . ' kbps' : 'N/A',
+                'duration' => $duration ? gmdate("i:s", $duration) : 'N/A',
+                'filename' => $outputFilename
+            ]
         ]);
     }
 }
